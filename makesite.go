@@ -24,8 +24,20 @@ func main() {
 	// }
 	// fmt.Print(string(fileContents))
 	t := template.Must(template.New("template.tmpl").ParseFiles("template.tmpl"))
+
+	w, err := os.Create("new-post.html")
+	if err != nil {
+		panic(err)
+	}
+
+	t.ExecuteTemplate(w, "template.tmpl", contentStruct)
+	if err != nil {
+		panic(err)
+	}
+
 	err = t.Execute(os.Stdout, contentStruct)
 	if err != nil {
 		panic(err)
 	}
+
 }
