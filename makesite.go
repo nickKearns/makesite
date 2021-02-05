@@ -1,43 +1,66 @@
 package main
 
 import (
+	"flag"
 	"html/template"
 	"io/ioutil"
 	"os"
+	"strings"
 )
 
 // Content for body of txt file
-type Content struct {
-	Body string
+type Page struct {
+	TextFilePath string
+	TextFileName string
+	HTMlPagePath string
+	Body         string
+}
+
+func createFromTextFile(filepath string) Page {
+
+	fileContents, err := ioutil.ReadFile(filepath)
+	if err != nil {
+		panic(err)
+	}
+
+	removedExetension := strings.Split(filepath, ".txt")[0]
+
+	return Page{
+		TextFilePath: filepath,
+		TextFileName: removedExetension,
+		HTMlPagePath: removedExetension + ".html",
+		Body:         string(fileContents),
+	}
+
+}
+
+func renderTemplateFromPage(templateFilePath string, page Page) {
+
+	t := template.Must(template.New(templateFilePath).ParseFiles(templateFilePath))
+
+	w, err := os.Create(page.HTMlPagePath)
+	if err != nil {
+		panic(err)
+	}
+
+	err = t.ExecuteTemplate(w, templateFilePath, page)
+	if err != nil {
+		panic(err)
+	}
+
 }
 
 func main() {
 
-	content, err := ioutil.ReadFile("first-post.txt")
-	contentAsString := string(content)
-	contentStruct := Content{contentAsString}
-	// if err != nil {
-	// 	// A common use of `panic` is to abort if a function returns an error
-	// 	// value that we don’t know how to (or want to) handle. This example
-	// 	// panics if we get an unexpected error when creating a new file.
-	// 	panic(err)
-	// }
-	// fmt.Print(string(fileContents))
-	t := template.Must(template.New("template.tmpl").ParseFiles("template.tmpl"))
+	var textFilePath string
+	flag.StringVar(&textFilePath, "file", "", "Name or path to a text file")
+	flag.Parse()
 
-	w, err := os.Create("new-post.html")
-	if err != nil {
-		panic(err)
+	if textFilePath == "" {
+		panic("Missing the --file flag! Please supply one.")
 	}
 
-	t.ExecuteTemplate(w, "template.tmpl", contentStruct)
-	if err != nil {
-		panic(err)
-	}
-
-	err = t.Execute(os.Stdout, contentStruct)
-	if err != nil {
-		panic(err)
-	}
+	newPage := createFromTextFile(textFilePath)
+	renderTemplateFromPage("template.tmpl", newPage)
 
 }
