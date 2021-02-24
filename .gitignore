@@ -28,3 +28,7 @@
 # Binaries
 makesite
 solution.go
+
+go.sum
+
+makesiteTranslator-419242cf089c.json

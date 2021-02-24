@@ -1,12 +1,16 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"html/template"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"cloud.google.com/go/translate"
+	"golang.org/x/text/language"
 )
 
 // Page is the struct of a page
@@ -17,11 +21,17 @@ type Page struct {
 	Body         string
 }
 
-func createFromTextFile(filepath string) Page {
+func createFromTextFile(filepath string, translate bool) Page {
 
 	fileContents, err := ioutil.ReadFile(filepath)
 	if err != nil {
 		panic(err)
+	}
+
+	fileContentsAsString := string(fileContents)
+
+	if translate == true {
+		fileContentsAsString = translateToFrench(string(fileContents))
 	}
 
 	removedExtension := strings.Split(filepath, ".txt")[0]
@@ -30,7 +40,7 @@ func createFromTextFile(filepath string) Page {
 		TextFilePath: filepath,
 		TextFileName: removedExtension,
 		HTMLPagePath: removedExtension + ".html",
-		Body:         string(fileContents),
+		Body:         fileContentsAsString,
 	}
 
 }
@@ -51,6 +61,29 @@ func renderTemplateFromPage(templateFilePath string, page Page) {
 
 }
 
+func translateToFrench(textToTranslate string) string {
+	ctx := context.Background()
+	client, err := translate.NewClient(ctx)
+	if err != nil {
+		// TODO: handle error.
+		panic(err)
+	}
+
+	defer client.Close()
+
+	translatedText, err := client.Translate(ctx,
+		[]string{textToTranslate}, language.French,
+		&translate.Options{
+			Source: language.English,
+			Format: translate.Text,
+		})
+	if err != nil {
+		panic(err)
+	}
+
+	return translatedText[0].Text
+}
+
 func main() {
 
 	var textFilePath string
@@ -59,6 +92,9 @@ func main() {
 	var dir string
 	flag.StringVar(&dir, "dir", "", "The directory of text files")
 
+	var translatePath string
+	flag.StringVar(&translatePath, "translatePath", "", "translate to French and create an html file from a txt file")
+
 	flag.Parse()
 
 	// if textFilePath == "" {
@@ -66,15 +102,21 @@ func main() {
 	// }
 
 	if textFilePath != "" {
-		newPage := createFromTextFile(textFilePath)
+		newPage := createFromTextFile(textFilePath, false)
 		renderTemplateFromPage("template.tmpl", newPage)
 	}
 
 	if dir != "" {
 		allTxtFiles, _ := filepath.Glob(dir + "/*.txt")
 		for _, txtFile := range allTxtFiles {
-			newPage := createFromTextFile(txtFile)
+			newPage := createFromTextFile(txtFile, false)
 			renderTemplateFromPage("template.tmpl", newPage)
 		}
 	}
+
+	if translatePath != "" {
+		newPage := createFromTextFile(translatePath, true)
+		renderTemplateFromPage("template.tmpl", newPage)
+	}
+
 }
